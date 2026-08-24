@@ -1,0 +1,125 @@
+# Auto-generated from cloudformation-tool-base.yaml — do not edit directly.
+# To regenerate: edit cloudformation-tool-base.yaml and create_bug_report.py,
+# then run:
+#   python generate_cloudformation_tool.py
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bug report tool - DynamoDB table, Lambda function, and IAM role
+
+Resources:
+
+  BugReportsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - BugReports-${Suffix}
+        - Suffix: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticketId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticketId
+          KeyType: HASH
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub
+        - create-bug-report-role-${Suffix}
+        - Suffix: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBPutItem
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: dynamodb:PutItem
+                Resource: !GetAtt BugReportsTable.Arn
+
+  CreateBugReportFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: LambdaExecutionRole
+    Properties:
+      FunctionName: !Sub
+        - create-bug-report-${Suffix}
+        - Suffix: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BugReportsTable
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import uuid
+          from datetime import datetime, timezone
+          import boto3
+
+          table = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
+
+          REQUIRED_FIELDS = ("description", "stepsToReproduce", "environment")
+
+          def lambda_handler(event, _):
+              print("EVENT:", json.dumps(event, indent=2, default=str))
+
+              # Bedrock Flow Lambda nodes wrap the actual data inside event["node"]["inputs"][0]["value"].
+              # Fall back to the raw event itself if that structure isn't present (e.g. direct console tests).
+              data = event
+              if isinstance(event, dict) and "node" in event and event["node"].get("inputs"):
+                  data = event["node"]["inputs"][0].get("value", {}) or {}
+
+              description = (data.get("description") or "").strip()
+              steps = (data.get("stepsToReproduce") or "").strip()
+              environment = (data.get("environment") or "").strip()
+
+              missing = [f for f in REQUIRED_FIELDS if not (data.get(f) or "").strip()]
+              if missing:
+                  return {"error": "missing_fields", "fields": missing}
+
+              ticket_id = str(uuid.uuid4())
+              item = {
+                  "ticketId": ticket_id,
+                  "description": description,
+                  "stepsToReproduce": steps,
+                  "environment": environment,
+                  "status": "OPEN",
+                  "createdAt": datetime.now(timezone.utc).isoformat(),
+              }
+
+              table.put_item(Item=item)
+
+              return {"ticketId": ticket_id, "status": "OPEN"}
+        
+
+
+  BedrockInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt CreateBugReportFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: bedrock.amazonaws.com
+
+Outputs:
+  BugReportsTableArn:
+    Description: ARN of the BugReports DynamoDB table
+    Value: !GetAtt BugReportsTable.Arn
+
+  LambdaFunctionArn:
+    Description: ARN of the create-bug-report Lambda function
+    Value: !GetAtt CreateBugReportFunction.Arn
+
+  LambdaExecutionRoleArn:
+    Description: ARN of the Lambda execution IAM role
+    Value: !GetAtt LambdaExecutionRole.Arn

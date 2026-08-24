@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "id": "multiturn_bug_report_complete",
+      "turns": [
+        "The checkout page crashes when I click the Pay button.",
+        "I add an item to the cart, go to checkout, and click Pay. I am using Chrome 120 on macOS Sonoma.",
+        "Yes, those details are correct. Please file the report."
+      ],
+      "prompt": "The checkout page crashes when I click the Pay button.",
+      "expected": "Collects the missing details one at a time, calls create_bug_report only after confirmation, and returns a ticket ID."
+    }
+  ]
+}

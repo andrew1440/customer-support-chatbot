@@ -1,0 +1,7 @@
+{
+  "region": "us-east-1",
+  "modelId": "amazon.nova-pro-v1:0",
+  "gatewayUrl": "https://customer-support-bug-report-gateway-vtpdrz2yua.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
+  "systemPrompt": ".harness\\system_prompt.txt",
+  "tool": "create_bug_report"
+}

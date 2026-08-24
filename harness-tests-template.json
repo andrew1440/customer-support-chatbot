@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "id": "t1_bug_report",
+      "prompt": "The checkout page crashes whenever I click the Pay button.",
+      "expected": "Acknowledges the bug and asks for one missing detail without calling the tool yet."
+    },
+    {
+      "id": "t2_platform_question",
+      "prompt": "How long do I have to return an item?",
+      "expected": "Answers accurately using only the FAQ."
+    },
+    {
+      "id": "t3_other_request",
+      "prompt": "I want to speak with a manager about a complaint.",
+      "expected": "Politely redirects the customer to a human and includes 1-800-012-3456."
+    }
+  ]
+}

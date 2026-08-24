@@ -1,0 +1,67 @@
+BUG REPORT — MULTI-TURN CONVERSATION TRANSCRIPT
+=================================================
+Captured from the deployed Bedrock Flow (Flow ID: BJ4TYV4N7Q, Alias: v1).
+Since Bedrock Flows has no native mid-flow "pause and wait for the
+customer" capability outside of Agent nodes (which require Bedrock
+Agents Classic, unavailable in this project), each turn below was sent
+as a separate invocation, with the growing conversation transcript
+resent as input on each turn. This is the standard stateless multi-turn
+pattern for Bedrock Flows.
+
+---
+
+Turn 1
+------
+Customer: The checkout page keeps crashing when I try to pay
+
+Flow routing: RouteByCategory → BUG_REPORT → BugReportCollector
+
+Assistant (BugReportFollowUpOutput):
+Thanks for bringing this to our attention! Could you please provide the
+exact steps you took before the page crashed?
+
+[Flow correctly recognized the description field was present but steps
+to reproduce and environment were still missing, and asked a single
+clarifying question rather than requesting all fields at once.]
+
+
+Turn 2
+------
+Customer (full transcript resent, including prior turn):
+Customer: The checkout page keeps crashing when I try to pay
+Assistant: Could you please provide the exact steps you took before the
+page crashed?
+Customer: I add an item to my cart, go to checkout, and click Pay —
+that's when it crashes. I'm using Chrome on Windows 11.
+
+Flow routing: RouteByCategory → BUG_REPORT → BugReportCollector →
+ParseCollectorOutput → IsCollectionComplete → COMPLETE →
+CreateBugReportLambda → BugReportConfirmation → BugReportOutput
+
+Assistant (BugReportOutput):
+Thank you for reaching out! Your bug report has been successfully filed.
+Your ticket ID is e1bba4b4-6dec-4e40-bd35-08168ec44be9. Our team will
+look into it and get back to you as soon as possible. If you have any
+more questions or need further assistance, feel free to ask!
+
+[Flow correctly recognized all three required fields (description,
+steps to reproduce, environment) were now present, invoked the
+create_bug_report Lambda tool via the CreateBugReportLambda node, and
+relayed the returned ticket ID to the customer.]
+
+
+---
+
+VERIFICATION
+------------
+The following DynamoDB record was confirmed to exist in the
+BugReports-<suffix> table after this conversation, matching the ticket
+ID relayed to the customer above:
+
+  ticketId:         e1bba4b4-6dec-4e40-bd35-08168ec44be9
+  description:      The checkout page keeps crashing when trying to pay
+  stepsToReproduce: 1. Add item to cart 2. Go to checkout 3. Click Pay
+  environment:       Chrome on Windows 11
+  status:            OPEN
+  createdAt:         2026-08-22 (see DynamoDB screenshot,
+                      screenshots/09-dynamodb-bug-reports-table.png)

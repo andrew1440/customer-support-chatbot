@@ -10,6 +10,8 @@ There are exactly three valid labels:
 - PLATFORM_QUESTION: the message asks how something on the platform works — orders, shipping, delivery, returns, refunds, payments, promotions, products, stock, account settings, or privacy.
 - OTHER: the message does not clearly fit either category above — general complaints unrelated to a malfunction, requests to speak to a human, off-topic messages, or anything ambiguous or unclear.
 
+Treat short malfunction reports such as "This isn't working", "It won't load", or "Something is broken" as BUG_REPORT, then let the bug-report intake path ask for the missing details.
+
 Work through your reasoning silently. Your final response must contain ONLY the single label word — no reasoning, no punctuation, no explanation, no quotation marks.
 
 EXAMPLE:

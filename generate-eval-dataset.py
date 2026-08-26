@@ -99,7 +99,7 @@ def main():
     with out_path.open("w", encoding="utf-8") as f:
         for t in tests:
             test_id = t["id"]
-            reference = t.get("expected", "")
+            reference = t.get("reference_response", t.get("expected", ""))
             prompt = t.get("prompt", "")
             turns = t.get("turns", [prompt])
 

@@ -1,0 +1,634 @@
+{
+  "ResponseMetadata": {
+    "RequestId": "8e35542a-5a9f-4ef4-b9b6-07504a711338",
+    "HTTPStatusCode": 200,
+    "HTTPHeaders": {
+      "date": "Wed, 26 Aug 2026 07:31:39 GMT",
+      "content-type": "application/json",
+      "content-length": "24211",
+      "connection": "keep-alive",
+      "x-amzn-requestid": "8e35542a-5a9f-4ef4-b9b6-07504a711338",
+      "x-amz-apigw-id": "CsxuVFHcIAMEvTQ=",
+      "x-amzn-trace-id": "Root=1-6a8e965b-1f13e2f135577f6b43d1def7"
+    },
+    "RetryAttempts": 0
+  },
+  "name": "Customer-request-flow",
+  "description": "Customer support chatbot flow",
+  "executionRoleArn": "arn:aws:iam::219967979764:role/service-role/AmazonBedrockExecutionRoleForFlows_W3FHCGSUB5",
+  "id": "5DCGJQ508A",
+  "arn": "arn:aws:bedrock:us-east-1:219967979764:flow/5DCGJQ508A",
+  "status": "Prepared",
+  "createdAt": "2026-08-25 06:05:36.653872+00:00",
+  "updatedAt": "2026-08-26 07:30:46.484799+00:00",
+  "version": "DRAFT",
+  "definition": {
+    "nodes": [
+      {
+        "name": "FlowInputNode",
+        "type": "Input",
+        "configuration": {
+          "input": {}
+        },
+        "outputs": [
+          {
+            "name": "document",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "ClassifierPrompt",
+        "type": "Prompt",
+        "configuration": {
+          "prompt": {
+            "sourceConfiguration": {
+              "inline": {
+                "templateType": "TEXT",
+                "templateConfiguration": {
+                  "text": {
+                    "text": "You are a precise message classification engine for a customer support system at an online shop. You do not chat with customers \u2014 you only classify their messages.\n\n\nRead the customer's message and think through it step by step: consider whether it describes something broken or malfunctioning, whether it asks about how the platform works, or whether it is neither. After reasoning through it internally, output exactly one classification label and nothing else.\n\n\nThere are exactly three valid labels:\n- BUG_REPORT: the message describes something broken, malfunctioning, erroring, crashing, freezing, or otherwise not working as expected on the website or app.\n- PLATFORM_QUESTION: the message asks how something on the platform works \u2014 orders, shipping, delivery, returns, refunds, payments, promotions, products, stock, account settings, or privacy.\n- OTHER: the message does not clearly fit either category above \u2014 general complaints unrelated to a malfunction, requests to speak to a human, off-topic messages, or anything ambiguous or unclear.\n\nTreat short malfunction reports such as \"This isn't working\", \"It won't load\", or \"Something is broken\" as BUG_REPORT, then let the bug-report intake path ask for the missing details.\n\nWork through your reasoning silently. Your final response must contain ONLY the single label word \u2014 no reasoning, no punctuation, no explanation, no quotation marks.\n\nEXAMPLE:\nInput: \"The app keeps crashing every time I try to upload a photo of my receipt\"\nReasoning (internal, not shown): This describes a malfunction \u2014 the app crashing \u2014 so it is a bug report.\nOutput: BUG_REPORT\n\nInput: \"How long does it usually take for a refund to show up in my account?\"\nReasoning (internal, not shown): This asks about refund timing, a platform process.\nOutput: PLATFORM_QUESTION\n\nInput: \"I just want to speak to a real person about my account\"\nReasoning (internal, not shown): This is not a bug and not a platform-process question \u2014 it's a request unrelated to either category.\nOutput: OTHER\n\nNow classify this message.\nCustomer message: {{customer_message}}\nOutput:",
+                    "inputVariables": [
+                      {
+                        "name": "customer_message"
+                      }
+                    ]
+                  }
+                },
+                "modelId": "amazon.nova-pro-v1:0",
+                "inferenceConfiguration": {
+                  "text": {
+                    "temperature": 0.0,
+                    "topP": 1.0,
+                    "maxTokens": 16,
+                    "stopSequences": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "inputs": [
+          {
+            "name": "customer_message",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "modelCompletion",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "FAQOutput",
+        "type": "Output",
+        "configuration": {
+          "output": {}
+        },
+        "inputs": [
+          {
+            "name": "document",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ]
+      },
+      {
+        "name": "isrequestcomplete",
+        "type": "Condition",
+        "configuration": {
+          "condition": {
+            "conditions": [
+              {
+                "name": "isComplete",
+                "expression": "conditionInput == \"COMPLETE\""
+              },
+              {
+                "name": "default"
+              }
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "conditionInput",
+            "type": "String",
+            "expression": "$.data.status"
+          }
+        ]
+      },
+      {
+        "name": "FAQPrompt",
+        "type": "Prompt",
+        "configuration": {
+          "prompt": {
+            "sourceConfiguration": {
+              "inline": {
+                "templateType": "TEXT",
+                "templateConfiguration": {
+                  "text": {
+                    "text": "ROLE\nYou are a customer support assistant for an online shop, answering questions using only the shop's official FAQ document.\n\nTASK\nRead the customer's question and the FAQ below. Determine whether the FAQ directly covers the customer's question. If it does, answer clearly and concisely using only information found in the FAQ, in your own words. If the FAQ does not cover the question, do not guess or make anything up \u2014 instead say you're not able to answer that from the FAQ and that you're passing them to a human.\n\nCONTEXT\nOnly use information explicitly present in the FAQ below. Never invent policies, numbers, timeframes, or exceptions that aren't stated. If the customer's question is only partially covered, answer the part that is covered and say the rest isn't something you can confirm from the FAQ.\n\nFAQ:\nOnline Shop FAQ (Demo)\n\nOrders\n\n1) Do I need an account to place an order?\nNo. You can check out as a guest. Creating an account lets you track orders, save addresses, and speed up future checkouts.\n\n2) How do I place an order?\nAdd items to your cart, proceed to checkout, enter shipping details, choose a payment method, and confirm your order. You'll receive an email confirmation once it's placed.\n\n3) Can I change or cancel my order after placing it?\nIf your order hasn't been packed yet, we may be able to change or cancel it. Contact support as soon as possible with your order number.\n\n4) I didn't receive an order confirmation email. What should I do?\nCheck your spam/junk folder and verify the email address used at checkout. If it's still missing after 30 minutes, contact support and we'll resend it.\n\n5) Why was my order canceled?\nOrders can be canceled due to payment authorization issues, stock availability, or automated fraud checks. If this happens, you won't be charged (or you'll be refunded automatically).\n\nShipping & Delivery\n\n6) Where do you ship?\nWe ship to most countries/regions listed at checkout. If your address isn't available, it means we currently can't ship there.\n\n7) How much does shipping cost?\nShipping costs are calculated at checkout based on destination and delivery speed. Promotions like free shipping (if offered) will be shown automatically.\n\n8) How long does delivery take?\nEstimated delivery times are shown at checkout and in your shipping confirmation email. Processing typically takes 1\u20132 business days before dispatch.\n\n9) How do I track my order?\nOnce your order ships, we'll email a tracking link. If you have an account, you can also find tracking under My Orders.\n\n10) My package is late, missing, or marked delivered but I can't find it.\nFirst, check tracking updates, your mailbox/neighbor, and any safe-place notes from the carrier. If it still hasn't turned up after 24 hours (marked delivered) or is delayed beyond the last estimate, contact support and we'll investigate.\n\nReturns & Refunds\n\n11) What is your return policy?\nYou can return most items within 30 days of delivery as long as they're unused and in original packaging (unless the item arrived defective).\n\n12) How do I start a return?\nContact support with your order number and the items you want to return. We'll send return instructions and, where applicable, a return label.\n\n13) Who pays for return shipping?\nIf the return is due to damage, defect, or our error, we cover return shipping. For \"changed my mind\" returns, return shipping may be deducted from your refund where allowed.\n\n14) When will I receive my refund?\nRefunds are issued to the original payment method after we receive and inspect the return. This typically takes 3\u201310 business days, depending on your bank/provider.\n\n15) Can I exchange an item?\nWe usually don't do direct exchanges. The fastest option is to return the original item (if eligible) and place a new order.\n\n16) What if my item arrived damaged or defective?\nContact us within 7 days of delivery with photos of the item, packaging, and shipping label. We'll arrange a replacement or refund.\n\n17) Are any items non-returnable?\nSome items may be non-returnable for hygiene, safety, customization, or regulatory reasons. If so, it will be clearly stated on the product page and/or at checkout.\n\nPayments & Promotions\n\n18) What payment methods do you accept?\nWe accept major credit/debit cards and other local methods shown at checkout. Available options can vary by country.\n\n19) When will I be charged?\nYou're charged when your order is placed (or when payment is authorized, depending on the method). If an item ships separately, some providers may show multiple authorizations.\n\n20) Why was my payment declined?\nCommon reasons include incorrect billing details, insufficient funds, bank security checks, or limits on international/online purchases. Try again, use a different method, or contact your bank.\n\n21) How do I use a discount or promo code?\nEnter the code at checkout in the promo/discount field and apply it before paying. Only one code may be used unless stated otherwise.\n\n22) Can I get an invoice/receipt?\nA receipt is emailed after purchase. If you need an invoice with company details (e.g., VAT), contact support with your order number and billing information.\n\nProducts & Stock\n\n23) Is the item I want in stock?\nIf you can add it to your cart, it's generally in stock. If it sells out, the product page will show \"Out of stock.\"\n\n24) Will you restock out-of-stock items?\nSome items are seasonal or limited. If restocking is planned, you may see a \"Notify me\" option on the product page.\n\n25) Do product photos match the real item?\nWe aim for accurate images and descriptions, but colors can vary by screen settings and lighting. Check the product details for material and sizing notes.\n\nAccount & Support\n\n26) I forgot my password. How do I reset it?\nUse the \"Forgot password\" link on the sign-in page. You'll receive a reset email if the address matches an account.\n\n27) How do I update my address or email?\nSign in and go to Account Settings to update your details. If an order is already placed, contact support quickly to request changes.\n\n28) How do I delete my account?\nContact support from the email linked to your account. We'll verify your request and process deletion in line with legal/recordkeeping requirements.\n\n29) How can I contact customer support?\nUse the help/contact form on our site (recommended) or reply to any order email. Include your order number for faster help.\n\n30) What are your support hours and response times?\nSupport is available Monday\u2013Friday (excluding holidays). We typically respond within 1\u20132 business days; urgent shipping/return issues are prioritized.\n\nPrivacy\n\n31) How do you use my personal data?\nWe use your data to process orders, provide support, prevent fraud, and improve our services. We don't sell your personal information.\n\n32) Can I request access or deletion of my data?\nYes. Contact support with your request. We'll handle it according to applicable privacy laws and may need to verify your identity.\n\nIf the FAQ does not cover the question, respond with exactly this pattern:\n\"I'm not able to find that in our FAQ. Let me connect you with our support team at 1-800-012-3456 who can help further.\"\n\nEXAMPLE\nQuestion: \"How long do I have to return an item?\"\nFAQ covers this: yes, returns are accepted within 30 days if unused and in original packaging.\nAnswer: \"You can return most items within 30 days of delivery, as long as they're unused and in their original packaging (unless the item arrived defective).\"\n\nQuestion: \"Do you offer price matching with other retailers?\"\nFAQ covers this: no, not mentioned anywhere in the FAQ.\nAnswer: \"I'm not able to find that in our FAQ. Let me connect you with our support team at 1-800-012-3456 who can help further.\"\n\nNow answer the customer's question below using only the FAQ above.\nCustomer question: {{customer_message}}",
+                    "inputVariables": [
+                      {
+                        "name": "customer_message"
+                      }
+                    ]
+                  }
+                },
+                "modelId": "amazon.nova-pro-v1:0",
+                "inferenceConfiguration": {
+                  "text": {
+                    "temperature": 0.0,
+                    "topP": 1.0,
+                    "maxTokens": 512,
+                    "stopSequences": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "inputs": [
+          {
+            "name": "customer_message",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "modelCompletion",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "OtherRequest",
+        "type": "Prompt",
+        "configuration": {
+          "prompt": {
+            "sourceConfiguration": {
+              "inline": {
+                "templateType": "TEXT",
+                "templateConfiguration": {
+                  "text": {
+                    "text": "You are a customer support assistant for an online shop, handling requests that fall outside bug reports and FAQ topics.\nTASK Politely let the customer know this specific request needs a human team member, and give them the support phone number to reach out directly.\nCONTEXT Keep the response short, warm, and professional. Do not attempt to answer the underlying request yourself. Always include the support phone number.\nEXAMPLE Customer message: \"I want to speak to a manager about a complaint.\" Response: \"I understand, and I want to make sure you get the right help. Please call our support team at 1-800-012-3456 \u2014 they'll be able to assist you directly.\"\nCustomer message: \"Can you help me plan a birthday party?\" Response: \"That's outside what I can help with here, but our support team would be happy to chat \u2014 you can reach them at 1-800-012-3456.\"\nNow respond to the customer's message below. Customer message: {{customer_message}}",
+                    "inputVariables": [
+                      {
+                        "name": "customer_message"
+                      }
+                    ]
+                  }
+                },
+                "modelId": "amazon.nova-pro-v1:0",
+                "inferenceConfiguration": {
+                  "text": {
+                    "temperature": 0.699999988079071,
+                    "topP": 1.0,
+                    "maxTokens": 512,
+                    "stopSequences": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "inputs": [
+          {
+            "name": "customer_message",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "modelCompletion",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "OtherOutput",
+        "type": "Output",
+        "configuration": {
+          "output": {}
+        },
+        "inputs": [
+          {
+            "name": "document",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ]
+      },
+      {
+        "name": "BugReportCollector",
+        "type": "Prompt",
+        "configuration": {
+          "prompt": {
+            "sourceConfiguration": {
+              "inline": {
+                "templateType": "TEXT",
+                "templateConfiguration": {
+                  "text": {
+                    "text": "You are a bug-report intake assistant for an online shop's customer support system. You collect structured information from customers about problems they've experienced, one step at a time.\nTASK You must collect exactly three pieces of information before you are done: (1) a description of the bug, (2) the steps to reproduce it, and (3) the customer's environment (browser, operating system, or device). Work through this using a Thought/Action cycle: first think about what you already have and what's still missing, then act \u2014 either by asking the customer one clear question about the single most important missing field, or, once all three fields are collected, by producing the final structured output.\nCONTEXT Ask only one question at a time \u2014 never ask for multiple fields in the same message. Be conversational and polite, but stay focused on the three required fields. Do not call this complete until you have explicit, specific answers for all three. If a customer's first message already contains some of this information, acknowledge it and only ask for what's genuinely missing.\nWhen information is still missing, respond in this format: THOUGHT: <your brief reasoning about what you have and what's missing> ASK: <a single, natural question to the customer about the missing field>\nWhen all three fields have been collected, respond in this exact format instead: THOUGHT: COMPLETE: {\"description\": \"\", \"stepsToReproduce\": \"\", \"environment\": \"\"}\nEXAMPLE Conversation so far: Customer says \"Your checkout page is broken, it crashes when I try to pay.\" THOUGHT: I have a description of the bug. I'm missing the steps to reproduce and the environment. ASK: Thanks for letting us know! Could you walk me through the exact steps you took right before it crashed?\nConversation so far: Customer has now provided description, steps to reproduce, and said they use Chrome on Windows 11. THOUGHT: I now have the description, steps to reproduce, and environment. All three fields are complete. COMPLETE: {\"description\": \"The checkout page crashes when trying to pay\", \"stepsToReproduce\": \"1. Add item to cart 2. Go to checkout 3. Click Pay\", \"environment\": \"Chrome on Windows 11\"}\nNow continue the conversation below. {{customer_message}}",
+                    "inputVariables": [
+                      {
+                        "name": "customer_message"
+                      }
+                    ]
+                  }
+                },
+                "modelId": "amazon.nova-pro-v1:0",
+                "inferenceConfiguration": {
+                  "text": {
+                    "temperature": 0.699999988079071,
+                    "topP": 1.0,
+                    "maxTokens": 512,
+                    "stopSequences": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "inputs": [
+          {
+            "name": "customer_message",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "modelCompletion",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "InlineCodeNode_1",
+        "type": "InlineCode",
+        "configuration": {
+          "inlineCode": {
+            "code": "import json\nimport re\n\ntext = \"\" if variable is None else str(variable).strip()\n\nstatus = \"INCOMPLETE\"\npayload = {}\nmessage = text\n\n\ndef clean_message(value):\n    value = value.strip()\n    value = re.split(r\"\\n\\s*---\", value, maxsplit=1)[0].strip()\n    value = re.sub(\n        r\"\\n?\\s*\\*\\*WAITING FOR CUSTOMER'?S RESPONSE\\*\\*\",\n        \"\",\n        value,\n        flags=re.IGNORECASE,\n    ).strip()\n    return value\n\n\nif \"COMPLETE:\" in text:\n    after_marker = text.split(\"COMPLETE:\", 1)[1].strip()\n    try:\n        decoded, _ = json.JSONDecoder().raw_decode(after_marker)\n        if isinstance(decoded, dict):\n            payload = {\n                \"description\": str(decoded.get(\"description\", \"\")).strip(),\n                \"stepsToReproduce\": str(decoded.get(\"stepsToReproduce\", \"\")).strip(),\n                \"environment\": str(decoded.get(\"environment\", \"\")).strip(),\n            }\n            if all(payload.values()):\n                status = \"COMPLETE\"\n                message = \"\"\n    except Exception:\n        status = \"INCOMPLETE\"\n\nif status != \"COMPLETE\":\n    ask_match = re.search(r\"ASK:\\s*(.*)\", text, re.DOTALL | re.IGNORECASE)\n    if ask_match:\n        message = clean_message(ask_match.group(1))\n    else:\n        message = clean_message(re.sub(\n            r\"^THOUGHT:\\s*.*?\\n\",\n            \"\",\n            text,\n            flags=re.IGNORECASE | re.DOTALL,\n        ))\n    if not message:\n        message = \"Could you share a little more detail about what happened?\"\n\nresponse = {\n    \"status\": status,\n    \"payload\": payload,\n    \"message\": message,\n}\nresponse\n",
+            "language": "Python_3"
+          }
+        },
+        "inputs": [
+          {
+            "name": "variable",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "response",
+            "type": "Object"
+          }
+        ]
+      },
+      {
+        "name": "CreatebugReport",
+        "type": "LambdaFunction",
+        "configuration": {
+          "lambdaFunction": {
+            "lambdaArn": "arn:aws:lambda:us-east-1:219967979764:function:create-bug-report-40ca4940:$LATEST"
+          }
+        },
+        "inputs": [
+          {
+            "name": "codeHookInput",
+            "type": "Object",
+            "expression": "$.data.payload"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "functionResponse",
+            "type": "Object"
+          }
+        ]
+      },
+      {
+        "name": "BugReportConfirmation",
+        "type": "Prompt",
+        "configuration": {
+          "prompt": {
+            "sourceConfiguration": {
+              "inline": {
+                "templateType": "TEXT",
+                "templateConfiguration": {
+                  "text": {
+                    "text": "You are a customer support assistant confirming that a bug report has\nbeen successfully filed.\n\nTASK\nTell the customer their bug report was received and give them their\nticket ID clearly, so they can reference it later.\n\nCONTEXT\nKeep the message short, friendly, and reassuring.\n\nEXAMPLE\nTicket info: {\"ticketId\": \"abc-123\", \"status\": \"OPEN\"}\nResponse: \"Thanks for reporting this! Your ticket has been filed with ID\nabc-123, and our team will look into it.\"\n\nNow write a confirmation message for this ticket.\nTicket info: {{ticket_info}}",
+                    "inputVariables": [
+                      {
+                        "name": "ticket_info"
+                      }
+                    ]
+                  }
+                },
+                "modelId": "amazon.nova-pro-v1:0",
+                "inferenceConfiguration": {
+                  "text": {
+                    "temperature": 0.699999988079071,
+                    "topP": 1.0,
+                    "maxTokens": 512,
+                    "stopSequences": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "inputs": [
+          {
+            "name": "ticket_info",
+            "type": "Object",
+            "expression": "$.data"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "modelCompletion",
+            "type": "String"
+          }
+        ]
+      },
+      {
+        "name": "BugReportOutput",
+        "type": "Output",
+        "configuration": {
+          "output": {}
+        },
+        "inputs": [
+          {
+            "name": "document",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ]
+      },
+      {
+        "name": "BugReportFollowup",
+        "type": "Output",
+        "configuration": {
+          "output": {}
+        },
+        "inputs": [
+          {
+            "name": "document",
+            "type": "String",
+            "expression": "$.data.message"
+          }
+        ]
+      },
+      {
+        "name": "ConditionNode_1",
+        "type": "Condition",
+        "configuration": {
+          "condition": {
+            "conditions": [
+              {
+                "name": "isBugReport",
+                "expression": "conditioninput == \"BUG_REPORT\""
+              },
+              {
+                "name": "isPlatformQuestion",
+                "expression": "conditioninput == \"PLATFORM_QUESTION\""
+              },
+              {
+                "name": "default"
+              }
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "conditioninput",
+            "type": "String",
+            "expression": "$.data"
+          }
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "type": "Data",
+        "name": "FlowInputNodeFlowInputNode0ToClassifierPromptPromptsNode0",
+        "source": "FlowInputNode",
+        "target": "ClassifierPrompt",
+        "configuration": {
+          "data": {
+            "sourceOutput": "document",
+            "targetInput": "customer_message"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "FlowInputNodeFlowInputNode0ToFAQPromptPromptsNode0",
+        "source": "FlowInputNode",
+        "target": "FAQPrompt",
+        "configuration": {
+          "data": {
+            "sourceOutput": "document",
+            "targetInput": "customer_message"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "FAQPromptPromptsNode0ToFAQOutputFlowOutputNode0",
+        "source": "FAQPrompt",
+        "target": "FAQOutput",
+        "configuration": {
+          "data": {
+            "sourceOutput": "modelCompletion",
+            "targetInput": "document"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "FlowInputNodeFlowInputNode0ToOtherRequestPromptsNode0",
+        "source": "FlowInputNode",
+        "target": "OtherRequest",
+        "configuration": {
+          "data": {
+            "sourceOutput": "document",
+            "targetInput": "customer_message"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "OtherRequestPromptsNode0ToOtherOutputFlowOutputNode0",
+        "source": "OtherRequest",
+        "target": "OtherOutput",
+        "configuration": {
+          "data": {
+            "sourceOutput": "modelCompletion",
+            "targetInput": "document"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "FlowInputNodeFlowInputNode0ToBugReportCollectorPromptsNode0",
+        "source": "FlowInputNode",
+        "target": "BugReportCollector",
+        "configuration": {
+          "data": {
+            "sourceOutput": "document",
+            "targetInput": "customer_message"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "BugReportCollectorPromptsNode0ToInlineCodeNode_1InlineCodeNode0",
+        "source": "BugReportCollector",
+        "target": "InlineCodeNode_1",
+        "configuration": {
+          "data": {
+            "sourceOutput": "modelCompletion",
+            "targetInput": "variable"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "CreatebugReportLambdaFunctionNode0ToBugReportConfirmationPromptsNode0",
+        "source": "CreatebugReport",
+        "target": "BugReportConfirmation",
+        "configuration": {
+          "data": {
+            "sourceOutput": "functionResponse",
+            "targetInput": "ticket_info"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "BugReportConfirmationPromptsNode0ToBugReportOutputFlowOutputNode0",
+        "source": "BugReportConfirmation",
+        "target": "BugReportOutput",
+        "configuration": {
+          "data": {
+            "sourceOutput": "modelCompletion",
+            "targetInput": "document"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "ClassifierPromptPromptsNode0ToConditionNode_1ConditionNode0",
+        "source": "ClassifierPrompt",
+        "target": "ConditionNode_1",
+        "configuration": {
+          "data": {
+            "sourceOutput": "modelCompletion",
+            "targetInput": "conditioninput"
+          }
+        }
+      },
+      {
+        "type": "Conditional",
+        "name": "ConditionNode_1ConditionNode0ToBugReportCollectorPromptsNode0",
+        "source": "ConditionNode_1",
+        "target": "BugReportCollector",
+        "configuration": {
+          "conditional": {
+            "condition": "isBugReport"
+          }
+        }
+      },
+      {
+        "type": "Conditional",
+        "name": "ConditionNode_1ConditionNode1ToFAQPromptPromptsNode0",
+        "source": "ConditionNode_1",
+        "target": "FAQPrompt",
+        "configuration": {
+          "conditional": {
+            "condition": "isPlatformQuestion"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "InlineCodeNode_1ToIsRequestCompleteData",
+        "source": "InlineCodeNode_1",
+        "target": "isrequestcomplete",
+        "configuration": {
+          "data": {
+            "sourceOutput": "response",
+            "targetInput": "conditionInput"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "InlineCodeNode_1ToCreateBugReportData",
+        "source": "InlineCodeNode_1",
+        "target": "CreatebugReport",
+        "configuration": {
+          "data": {
+            "sourceOutput": "response",
+            "targetInput": "codeHookInput"
+          }
+        }
+      },
+      {
+        "type": "Data",
+        "name": "InlineCodeNode_1ToBugReportFollowupData",
+        "source": "InlineCodeNode_1",
+        "target": "BugReportFollowup",
+        "configuration": {
+          "data": {
+            "sourceOutput": "response",
+            "targetInput": "document"
+          }
+        }
+      },
+      {
+        "type": "Conditional",
+        "name": "IsRequestCompleteToCreateBugReportConditional",
+        "source": "isrequestcomplete",
+        "target": "CreatebugReport",
+        "configuration": {
+          "conditional": {
+            "condition": "isComplete"
+          }
+        }
+      },
+      {
+        "type": "Conditional",
+        "name": "IsRequestCompleteToBugReportFollowupConditional",
+        "source": "isrequestcomplete",
+        "target": "BugReportFollowup",
+        "configuration": {
+          "conditional": {
+            "condition": "default"
+          }
+        }
+      },
+      {
+        "type": "Conditional",
+        "name": "ConditionNode_1ToOtherRequestDefaultConditional",
+        "source": "ConditionNode_1",
+        "target": "OtherRequest",
+        "configuration": {
+          "conditional": {
+            "condition": "default"
+          }
+        }
+      }
+    ]
+  },
+  "validations": []
+}
